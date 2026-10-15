@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import shutil
 import sys
+from pack_validation import validate_template
 
 HERE=Path(__file__).resolve().parent
 
@@ -25,6 +26,7 @@ def configure(args):
     workspace=Path(config['workspace'])
     header=Path(config['template'])/'mth'/config['template_header']
     if not header.is_file():raise ValueError('The prepared VF template needs mth/'+config['template_header'])
+    validate_template(config['template'])
     if args.install_pipeline:
         dest=workspace/'work/ef12';dest.mkdir(parents=True,exist_ok=True)
         backup=dest/'before_budokai_to_ef12';backup.mkdir(exist_ok=True)

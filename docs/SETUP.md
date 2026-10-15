@@ -58,3 +58,9 @@ For diagnostics, inspect local `PreviewCache/*/preview.log`, `Models/*/native/im
 - Hit timing defaults are estimates; collision parts inherit copied VF attack defaults.
 - Generated combo command timing follows the template format and needs in-game validation.
 - Export creates a new folder; installing it and registering a character in EF-12 are manual steps.
+
+## EF-12 black screen when installing a character
+
+Keep the standard roster entries when adding a character. On the tested Steam build, reducing the roster to Goku and Vegeta left startup black; restoring the consecutive stock entries (including VF-Montauk and SF-Yamato) restored startup. Add characters without leaving gaps in Character0, Character1, etc.
+
+The prepared template and exported pack must also retain `mdl/Dummy.fmdl`, the standard empty placeholder from a stock character. A Goku-versus-Vegeta command-line match exited with access violation 0xC0000005 when this file was omitted and ran with it restored. This empty file must not be removed as an unused model. Setup and export now check for it before conversion.

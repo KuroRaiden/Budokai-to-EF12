@@ -8,6 +8,7 @@ from models import Models
 from mesh_preview import MeshPreviews
 from action_labels import decorate, input_summary
 from combos import clean_combos, compile_combos, motion_entries, entry_commands
+from pack_validation import validate_template
 
 HERE=Path(__file__).resolve().parent
 if not (HERE/'config.json').is_file():
@@ -60,6 +61,7 @@ def run_stage(args,cwd,env,log,timeout):
 
 def build(job,recipe):
  try:
+  validate_template(CFG['template'])
   root=Path(CFG['exports']);root.mkdir(parents=True,exist_ok=True)
   slug=re.sub(r'[^A-Za-z0-9_-]+','_',recipe['name'])
   folder=root/(slug+'_'+time.strftime('%Y%m%d_%H%M%S')+'_'+job['id'][:5]);folder.mkdir()
