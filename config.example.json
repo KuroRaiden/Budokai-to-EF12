@@ -1,0 +1,11 @@
+{
+  "assets": "C:/LocalAssets/Shin_Budokai_Another_Road_Assets",
+  "template": "C:/LocalAssets/EF12_Characters/DBZ-Goku-VF",
+  "workspace": "C:/EF12Workspace",
+  "exports": "C:/LocalAssets/Characters",
+  "python": "python",
+  "port": 8765,
+  "template_family": "VF-Montauk",
+  "template_header": "MotHead-1.csv",
+  "template_guard": "button:X"
+}

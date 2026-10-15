@@ -1,0 +1,57 @@
+{
+  "version": 3,
+  "name": "Goku Shin VF",
+  "model": "Goku",
+  "style": "3D",
+  "template": "VF-Montauk",
+  "assignments": {
+    "2766402c5ea7e739": {
+      "clip": "bcc5d9914d2e4505:0",
+      "damage": 0,
+      "hit": -1
+    },
+    "c552cdeab61f9061": {
+      "clip": "bcc5d9914d2e4505:0",
+      "damage": 0,
+      "hit": -1
+    },
+    "0b001c05c62287b9": {
+      "clip": "bcc5d9914d2e4505:17",
+      "damage": 12,
+      "hit": -1
+    },
+    "28a8f0cc20371e24": {
+      "clip": "bcc5d9914d2e4505:25",
+      "damage": 20,
+      "hit": -1
+    },
+    "3544446403c45e52": {
+      "clip": "bcc5d9914d2e4505:44",
+      "damage": 20,
+      "hit": -1
+    },
+    "1e514ca7ea2c0ed5": {
+      "clip": "bcc5d9914d2e4505:29",
+      "damage": 20,
+      "hit": -1
+    },
+    "511605e54afa922c": {
+      "clip": "bcc5d9914d2e4505:20",
+      "damage": 20,
+      "hit": -1
+    },
+    "6cbad8cb01acc0e1": {
+      "clip": "bcc5d9914d2e4505:44",
+      "damage": 20,
+      "hit": -1
+    }
+  },
+  "controls": {
+    "L": "Light",
+    "H": "Heavy",
+    "G": "Guard",
+    "E": "Ki blast",
+    "RB": "Ki charge"
+  },
+  "notes": "VF-Montauk Speed foundation, single 3D style. Original Shin Budokai idle, punches and kicks assigned; other actions inherit VF."
+}
