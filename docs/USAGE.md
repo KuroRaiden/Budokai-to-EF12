@@ -22,3 +22,7 @@ Up to 16 strings and 24 moves per string are supported. Generated files include 
 ## Retargeting revision
 
 Movement scale is calibrated from the source and selected model limb lengths. Airborne toe clearance is preserved rather than forced onto the floor. Compatible Euler branches and linear sampled curves reduce rotation flips. **Follow movement** keeps translating and airborne motions in view; uncheck it for a fixed camera. Preview caches include the retargeter version and regenerate after an update. Re-export existing packs to apply these changes; old exported motions are not overwritten. `retarget_quality.json` in each conversion bank records numeric diagnostics. Finger posing, foot-contact cleanup, combat collisions and individual move polish still require work.
+
+## Shared animation names
+
+Shared clips have searchable descriptive names for movements, defensive poses, reactions and recoveries. These are motion-review descriptions, not original game labels or verified gameplay commands. Original archive and clip numbers remain visible and recipe IDs are unchanged. Search terms include dash, guard and recovery. The four environment-bank entries retain their bank codes because their exact purpose is unverified. The original-input-label filter continues to show only clips with original command labels.

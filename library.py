@@ -1,6 +1,7 @@
 """Read-only Shin Budokai AMM/AMO library, using documented native layouts."""
 import struct, math, hashlib, bisect
 from pathlib import Path
+from shared_labels import shared_label
 
 def u32(b,o):return struct.unpack_from('<I',b,o)[0]
 def role(n):return n.split('_',1)[-1].replace('L00_','').lower()
@@ -28,7 +29,11 @@ class Library:
     labels=self.labels(p)
     for i,ptr in enumerate(ptrs):
      nf,opt,_=struct.unpack_from('<HHI',b,t+8*i)
-     if ptr and nf>1:self.entries.append(dict(id=f'{fid}:{i}',character=char,archive=p.parent.name,file=p.name,index=i,frames=nf,label=labels.get(i,f'Clip {i:03}'),named=i in labels))
+     if ptr and nf>1:
+      entry=dict(id=f'{fid}:{i}',character=char,archive=p.parent.name,file=p.name,index=i,frames=nf,label=labels.get(i,f'Clip {i:03}'),named=i in labels)
+      description=shared_label(p,i) if char=='Shared' else None
+      if description:entry.update(description)
+      self.entries.append(entry)
    except (ValueError,struct.error,StopIteration) as ex:self.skipped.append(dict(file=str(p.relative_to(self.root)),reason=str(ex)))
   self.byid={e['id']:e for e in self.entries}
  def labels(self,p):
