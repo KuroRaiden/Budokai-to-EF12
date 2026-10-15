@@ -1,10 +1,11 @@
-/* Offline textured mesh viewer. CPU skinning mirrors Blender deformation matrices. */
+/* Offline textured mesh viewer. CPU skinning mirrors Blender deformation matrices.
+   Source UVs can occupy tiles outside 0..1; fract repeats them for POT and NPOT textures. */
 class MeshViewer {
  constructor(canvas){
   this.canvas=canvas;this.gl=canvas.getContext('webgl',{alpha:true,antialias:true});if(!this.gl)throw Error('WebGL is unavailable in this browser.');
   const gl=this.gl,compile=(type,src)=>{const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s};
   const vs=compile(gl.VERTEX_SHADER,'attribute vec3 aPos;attribute vec2 aUV;uniform mat4 uMVP;varying vec2 vUV;void main(){gl_Position=uMVP*vec4(aPos,1.0);vUV=aUV;}');
-  const fs=compile(gl.FRAGMENT_SHADER,'precision mediump float;varying vec2 vUV;uniform sampler2D uTexture;uniform vec4 uColor;void main(){vec4 c=texture2D(uTexture,vUV)*uColor;if(c.a<0.1)discard;gl_FragColor=c;}');
+  const fs=compile(gl.FRAGMENT_SHADER,'precision mediump float;varying vec2 vUV;uniform sampler2D uTexture;uniform vec4 uColor;void main(){vec4 c=texture2D(uTexture,fract(vUV))*uColor;if(c.a<0.1)discard;gl_FragColor=c;}');
   this.program=gl.createProgram();gl.attachShader(this.program,vs);gl.attachShader(this.program,fs);gl.linkProgram(this.program);if(!gl.getProgramParameter(this.program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(this.program));
   this.pos=gl.getAttribLocation(this.program,'aPos');this.uv=gl.getAttribLocation(this.program,'aUV');this.mvp=gl.getUniformLocation(this.program,'uMVP');this.color=gl.getUniformLocation(this.program,'uColor');
   this.parts=[];this.motion=null;this.data=null;this.loadVersion=0;this.lastFrame=-1;
