@@ -6,6 +6,11 @@ import hashlib,json,os,subprocess,threading
 class MeshPreviews:
  def __init__(self,here,cfg,library,models):
   self.here=Path(here);self.cfg=cfg;self.library=library;self.models=models;self.pool=ThreadPoolExecutor(max_workers=1);self.jobs={};self.lock=threading.Lock()
+  scripts=Path(cfg['workspace'])/'work/ef12';signature=b'mesh-v3'
+  for name in ('retarget_shin_goku.py','retarget_quality.py'):
+   p=scripts/name
+   if p.is_file():signature+=p.read_bytes()
+  self.version=hashlib.sha256(signature).hexdigest()[:16]
  def request(self,clip,model='Goku'):
   self.library.source(clip)
   info=self.models.get(model)
@@ -13,7 +18,7 @@ class MeshPreviews:
   identity=model+'|'+clip
   with self.lock:
    if identity in self.jobs:return dict(self.jobs[identity])
-   key=hashlib.sha256(('mesh-v2|'+identity).encode()).hexdigest()[:20]
+   key=hashlib.sha256((self.version+'|'+identity).encode()).hexdigest()[:20]
    out=self.here/'PreviewCache'/key
    file=out/'mesh_motion.json'
    if file.is_file():return dict(status='complete',url='/api/mesh-motion?id='+clip+'&model='+model)
@@ -22,7 +27,7 @@ class MeshPreviews:
    self.pool.submit(self.generate,clip,model,out,job)
    return dict(job)
  def motion(self,clip,model='Goku'):
-  self.library.source(clip);self.models.get(model);key=hashlib.sha256(('mesh-v2|'+model+'|'+clip).encode()).hexdigest()[:20]
+  self.library.source(clip);self.models.get(model);key=hashlib.sha256((self.version+'|'+model+'|'+clip).encode()).hexdigest()[:20]
   p=self.here/'PreviewCache'/key/'mesh_motion.json'
   if not p.is_file():raise ValueError('Mesh preview is not ready yet')
   return p.read_bytes()
@@ -35,7 +40,7 @@ class MeshPreviews:
    log=out/'preview.log'
    with log.open('wb') as f:
     result=subprocess.run([str(base/'work/blender/blender-4.0.2-windows-x64/blender.exe'),'--background','--python',str(base/'work/ef12/retarget_shin_goku.py')],cwd=base,env=env,stdout=f,stderr=subprocess.STDOUT,timeout=240)
-   if result.returncode or not (out/'mesh_motion.json').is_file():raise RuntimeError('This move could not be retargeted onto Goku. Source skeleton preview remains available. Details: '+str(log))
+   if result.returncode or not (out/'mesh_motion.json').is_file():raise RuntimeError('This move could not be retargeted onto the selected character. Source skeleton preview remains available. Details: '+str(log))
    d=json.loads((out/'mesh_motion.json').read_text());assert d['frames'] and d['bones']
    job.update(status='complete',stage='Character mesh · retargeted move',url='/api/mesh-motion?id='+clip+'&model='+model_id)
   except Exception as ex:job.update(status='failed',stage=str(ex))

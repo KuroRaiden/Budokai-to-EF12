@@ -17,3 +17,8 @@
 The entry retains its existing VF command. New follow-up inputs use engine A for L, B for H and Y for E; these are not physical controller labels. E can play a selected attack animation but does not create a projectile or consume Ki. The mesh preview shows one move, not the whole string. The inherited follow-up commands for the selected entry are replaced only in the exported pack; other entry routes remain.
 
 Up to 16 strings and 24 moves per string are supported. Generated files include `builder_recipe.json`, `builder_report.json` and `combo_report.json` for review. AI logic is inherited and does not learn new routes.
+
+
+## Retargeting revision
+
+Movement scale is calibrated from the source and selected model limb lengths. Airborne toe clearance is preserved rather than forced onto the floor. Compatible Euler branches and linear sampled curves reduce rotation flips. **Follow movement** keeps translating and airborne motions in view; uncheck it for a fixed camera. Preview caches include the retargeter version and regenerate after an update. Re-export existing packs to apply these changes; old exported motions are not overwritten. `retarget_quality.json` in each conversion bank records numeric diagnostics. Finger posing, foot-contact cleanup, combat collisions and individual move polish still require work.

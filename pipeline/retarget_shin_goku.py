@@ -4,6 +4,7 @@ from mathutils import Matrix,Quaternion,Vector,Euler
 base=Path(os.environ.get('DBZ_WORKSPACE',str(Path(__file__).resolve().parents[2])))
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from native_skeleton import skeleton
+from retarget_quality import movement_scale, floor_correction, continuous_euler
 assets=Path(os.environ.get('SHIN_ASSETS',str(base/'local/Shin_Budokai_Another_Road_Assets')))
 model=Path(os.environ['SHIN_SOURCE_MODEL']) if 'SHIN_SOURCE_MODEL' in os.environ else next(assets.glob('models/data_btl_cmn/Goku__0093*/*.amo'))
 amm=Path(os.environ['SHIN_SOURCE_AMM']) if 'SHIN_SOURCE_AMM' in os.environ else next(assets.glob('animations/data_btl_cmn/Goku__0092*/Goku__0005.amm'))
@@ -56,12 +57,15 @@ if os.environ.get('STUDIO_MODEL_DIR'):
   par=bind['parents'][role]
   while par and par not in model_heads:par=bind['parents'][par]
   role_parents[role]=par
+source_heads={role:tuple(matrix.translation) for role,matrix in rest.items()}
+motion_scale=movement_scale(source_heads,model_heads)
+print('CALIBRATED_MOTION_SCALE',motion_scale,flush=True)
 bpy.ops.wm.open_mainfile(filepath=str(Path(os.environ['STUDIO_MODEL_DIR'])/'model_review.blend' if os.environ.get('STUDIO_MODEL_DIR') else base/'outputs/Goku_Corrected_Review.blend'))
 arm=bpy.data.objects['G6Lite_Rig'];arm.animation_data_create()
 for bone in arm.data.bones:bone.use_deform=True
 for pb in arm.pose.bones:
  for con in list(pb.constraints):pb.constraints.remove(con)
-payload={}
+payload={};quality=[]
 # BSK action code 0 explicitly selects pool 3 / animation 0: original fighting idle.
 selection=json.loads(Path(os.environ['SHIN_SELECTION']).read_text()) if 'SHIN_SELECTION' in os.environ else [(0,'Goku_Shin_Idle'),(17,'Goku_Shin_Light1'),(25,'Goku_Shin_Light2'),(29,'Goku_Shin_Heavy1'),(20,'Goku_Shin_Heavy2'),(44,'Goku_Shin_LightHeavy')]
 for index,name in selection:
@@ -81,7 +85,7 @@ for index,name in selection:
   tracks[nm]=tr
  action=bpy.data.actions.new(name);action.use_fake_user=True;arm.animation_data.action=action;baked=[]
  parent_first=sorted(arm.pose.bones,key=lambda pb:len(pb.parent_recursive))
- first=globals_for(tracks,0)
+ first=globals_for(tracks,0);previous_angles={};clip_quality=dict(index=index,name=name,frames=nf,motion_scale=motion_scale,max_source_clearance=0.,max_target_clearance=0.,max_euler_step=0.)
  # Keep the idle rooted; game translation units are ~1/10 of target Blender units.
  for f in range(nf):
   posed=globals_for(tracks,f);bpy.context.scene.frame_set(f)
@@ -91,25 +95,37 @@ for index,name in selection:
    if role in heads:return heads[role]
    par=role_parents[role]
    if par:head=head_for(par)+deltas[par]@(model_heads[role]-model_heads[par])
-   else:head=model_heads[role]+(posed[role].translation-first[role].translation)*1.3
+   else:head=model_heads[role]+(posed[role].translation-first[role].translation)*motion_scale
    heads[role]=head;return head
   for role in model_heads:head_for(role)
-  lift=min(heads['lfoot2'].z,heads['rfoot2'].z)-min(model_heads['lfoot2'].z,model_heads['rfoot2'].z)
+  source_clearance=min(posed['lfoot2'].translation.z,posed['rfoot2'].translation.z)
+  lift=floor_correction([heads['lfoot2'].z,heads['rfoot2'].z],[model_heads['lfoot2'].z,model_heads['rfoot2'].z],[posed['lfoot2'].translation.z,posed['rfoot2'].translation.z],motion_scale)
   for h in heads.values():h.z-=lift
+  clip_quality['max_source_clearance']=max(clip_quality['max_source_clearance'],source_clearance)
+  clip_quality['max_target_clearance']=max(clip_quality['max_target_clearance'],min(heads['lfoot2'].z,heads['rfoot2'].z)-min(model_heads['lfoot2'].z,model_heads['rfoot2'].z))
   for pb in parent_first:
-   pb.rotation_mode='XYZ';pb.location=(0,0,0);pb.scale=(1,1,1)
+   pb.rotation_mode='XYZ';pb.location=(0,0,0);pb.scale=(1,1,1);pb.rotation_euler=(0,0,0)
+  bpy.context.view_layer.update()
+  for pb in parent_first:
    src=mapping.get(pb.name)
    if src and src in posed and src in rest:
     delta=deltas[src]
     deform=Matrix.LocRotScale(heads[src]-delta@model_heads[src],delta,Vector((1,1,1)))
     pb.matrix=deform@pb.bone.matrix_local
-   else:pb.rotation_euler=(0,0,0)
-   bpy.context.view_layer.update()
    if src:
+    previous=previous_angles.get(pb.name)
+    compatible=pb.matrix_basis.to_euler('XYZ',Euler(previous,'XYZ')) if previous else pb.matrix_basis.to_euler('XYZ')
+    angles=continuous_euler(compatible,previous)
+    if previous:clip_quality['max_euler_step']=max(clip_quality['max_euler_step'],max(abs(a-b) for a,b in zip(angles,previous)))
+    pb.rotation_euler=angles;previous_angles[pb.name]=angles
+    bpy.context.view_layer.update()
     pb.keyframe_insert('rotation_euler',frame=f);pb.keyframe_insert('location',frame=f)
   baked.append(dict(frame=f,bones={pb.name:dict(rotation=list(pb.rotation_euler),location=list(pb.location)) for pb in arm.pose.bones if pb.name in mapping}))
- payload[name]=baked
+ for curve in action.fcurves:
+  for point in curve.keyframe_points:point.interpolation='LINEAR'
+ payload[name]=baked;quality.append(clip_quality)
 out=Path(os.environ.get('SHIN_OUT_DIR',str(base/'work/ef12/shin_motion')));out.mkdir(parents=True,exist_ok=True)
+(out/'retarget_quality.json').write_text(json.dumps(quality,indent=2))
 (out/'retargeted_motion.json').write_text(json.dumps(payload,separators=(',',':')))
 bpy.context.scene.frame_set(0);bpy.context.scene.frame_start=0;bpy.context.scene.frame_end=nf-1
 arm.animation_data.action=bpy.data.actions[selection[0][1]];bpy.context.scene.frame_end=len(payload[selection[0][1]])-1
@@ -118,14 +134,14 @@ if os.environ.get('SHIN_PREVIEW_JSON'):
  geometry=json.loads((Path(os.environ.get('STUDIO_MODEL_DIR',str(base/'work/ef12/pilot_v2')))/'Goku_geometry.json').read_text())
  names=sorted({n for mesh in geometry['meshes'] for w in mesh['weights'] for n in w})
  arm.animation_data.action=bpy.data.actions[selection[0][1]]
- samples=[]
+ samples=[];root_positions=[]
  for frame in range(len(payload[selection[0][1]])):
   bpy.context.scene.frame_set(frame);bpy.context.view_layer.update()
   row=[]
   for name in names:
    pb=arm.pose.bones[name];matrix=arm.matrix_world@pb.matrix@pb.bone.matrix_local.inverted()@arm.matrix_world.inverted()
    row.append([round(matrix[r][c],6) for c in range(4) for r in range(4)])
-  samples.append(row)
- Path(os.environ['SHIN_PREVIEW_JSON']).write_text(json.dumps(dict(bones=names,frames=samples,fps=60,retargeted=True),separators=(',',':')))
+  samples.append(row);root_positions.append(list(arm.matrix_world@arm.pose.bones['Waist'].head))
+ Path(os.environ['SHIN_PREVIEW_JSON']).write_text(json.dumps(dict(bones=names,frames=samples,root_positions=root_positions,fps=60,retargeted=True,retarget_version=3),separators=(',',':')))
 if os.environ.get('SHIN_PREVIEW_ONLY')!='1':bpy.ops.wm.save_as_mainfile(filepath=str(out/'Goku_Shin_Idle_Review.blend'))
 print('SHIN_IDLE_RETARGETED',nf,'frames',flush=True)

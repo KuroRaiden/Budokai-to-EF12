@@ -29,18 +29,19 @@ class MeshViewer {
   this.motion={...motion,frames:motion.frames.map(row=>this.data.bones.map(n=>row[map.get(n)]))};this.lastFrame=-1;
  }
  clearMotion(){this.motion=null;this.lastFrame=-1;}
- draw(frame,yaw,pitch,zoom){
+ draw(frame,yaw,pitch,zoom,follow=true){
   const gl=this.gl,w=this.canvas.clientWidth,h=this.canvas.clientHeight,dpr=Math.min(devicePixelRatio||1,2);if(this.canvas.width!==Math.round(w*dpr)||this.canvas.height!==Math.round(h*dpr)){this.canvas.width=Math.round(w*dpr);this.canvas.height=Math.round(h*dpr)}
   gl.viewport(0,0,this.canvas.width,this.canvas.height);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);if(!this.data)return;
   const f=this.motion?Math.floor(frame)%this.motion.frames.length:-1;
   if(f!==this.lastFrame||this.lastFrame===-1){
+   const poseLo=[Infinity,Infinity,Infinity],poseHi=[-Infinity,-Infinity,-Infinity];
    for(const p of this.parts){if(f<0)p.positions.set(p.base);else{const mats=this.motion.frames[f];for(let i=0,v=0;i<p.base.length;i+=3,v++){
     const x=p.base[i],y=p.base[i+1],z=p.base[i+2];let xx=0,yy=0,zz=0,total=0;
     for(let k=0;k<4;k++){const weight=p.weights[v*4+k];if(!weight)continue;const m=mats[p.joints[v*4+k]];xx+=(m[0]*x+m[4]*y+m[8]*z+m[12])*weight;yy+=(m[1]*x+m[5]*y+m[9]*z+m[13])*weight;zz+=(m[2]*x+m[6]*y+m[10]*z+m[14])*weight;total+=weight}
     p.positions[i]=total?xx:x;p.positions[i+1]=total?yy:y;p.positions[i+2]=total?zz:z;
-   }}gl.bindBuffer(gl.ARRAY_BUFFER,p.pb);gl.bufferSubData(gl.ARRAY_BUFFER,0,p.positions)}this.lastFrame=f;
+   }}for(let i=0;i<p.positions.length;i++){const axis=i%3;poseLo[axis]=Math.min(poseLo[axis],p.positions[i]);poseHi[axis]=Math.max(poseHi[axis],p.positions[i]);}gl.bindBuffer(gl.ARRAY_BUFFER,p.pb);gl.bufferSubData(gl.ARRAY_BUFFER,0,p.positions)}this.lastFrame=f;this.posedCenter=poseLo.map((v,i)=>(v+poseHi[i])/2);
   }
-  const s=this.span,center=this.center,dist=s*3,eye=[center[0]+Math.sin(yaw)*Math.cos(pitch)*dist,center[1]+Math.cos(yaw)*Math.cos(pitch)*dist,center[2]+Math.sin(pitch)*dist];
+  const s=this.span,center=follow&&this.posedCenter?this.posedCenter:this.center,dist=s*3,eye=[center[0]+Math.sin(yaw)*Math.cos(pitch)*dist,center[1]+Math.cos(yaw)*Math.cos(pitch)*dist,center[2]+Math.sin(pitch)*dist];
   const norm=a=>{const n=Math.hypot(...a);return a.map(v=>v/n)},cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],dot=(a,b)=>a.reduce((v,x,i)=>v+x*b[i],0);
   const z=norm(eye.map((v,i)=>v-center[i])),x=norm(cross([0,0,1],z)),y=cross(z,x),view=[x[0],y[0],z[0],0,x[1],y[1],z[1],0,x[2],y[2],z[2],0,-dot(x,eye),-dot(y,eye),-dot(z,eye),1];
   const top=s*.57/zoom,right=top*w/Math.max(h,1),near=.01,far=s*10,proj=[1/right,0,0,0,0,1/top,0,0,0,0,-2/(far-near),0,0,0,-(far+near)/(far-near),1],mvp=new Float32Array(16);
